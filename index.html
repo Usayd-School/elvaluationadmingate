@@ -521,6 +521,7 @@
                 this.dbTeachers = [];
                 this.dbStudents = [];
                 this.classesList = [];
+                this.tests = [];
 
                 this.initializeFirebaseListeners();
 
@@ -669,14 +670,28 @@
             }
 
             loadData() {
-                const defaultData = [];
-                const saved = localStorage.getItem('school_measurement_data_v20');
-                this.tests = saved ? JSON.parse(saved) : defaultData;
-                this.render();
+                // الربط مع الفايربيس لجلب الاختبارات وعرض حالة الاطلاع
+                database.ref('measurement_tests').on('value', snap => {
+                    const data = snap.val();
+                    if(data) {
+                        this.tests = Object.values(data);
+                    } else {
+                        const saved = localStorage.getItem('school_measurement_data_v20');
+                        this.tests = saved ? JSON.parse(saved) : [];
+                    }
+                    this.render();
+                });
             }
 
             saveData() {
+                // الحفظ الاحتياطي في التخزين المحلي
                 localStorage.setItem('school_measurement_data_v20', JSON.stringify(this.tests));
+                
+                // الحفظ السحابي في الفايربيس ليتمكن المستفيدون من سحب الاختبار
+                const testsObj = {};
+                this.tests.forEach(t => testsObj[t.id] = t);
+                database.ref('measurement_tests').set(testsObj).catch(err => console.error("Error saving to Firebase:", err));
+                
                 this.render();
             }
 
@@ -1089,7 +1104,8 @@
                     type: this.creatorType,
                     title, domain, unitName, introText, duration, colorTheme, standardsSections, totalWeight, targetWeight,
                     permissions: this.currentPermissions,
-                    status: this.editingItemId ? (this.tests.find(t=>t.id===this.editingItemId)?.status || 'active') : 'active'
+                    status: this.editingItemId ? (this.tests.find(t=>t.id===this.editingItemId)?.status || 'active') : 'active',
+                    viewedBy: this.editingItemId ? (this.tests.find(t=>t.id===this.editingItemId)?.viewedBy || {}) : {}
                 };
 
                 if(this.editingItemId) {
@@ -1102,7 +1118,7 @@
 
                 this.saveData();
                 this.switchTab('dashboard');
-                this.showAlert("تم الحفظ", "تم حفظ العنصر بنجاح. يمكنك إدارته ونشره من خلال لوحة التحكم.");
+                this.showAlert("تم الحفظ", "تم حفظ العنصر بنجاح وتم ربطه بقاعدة البيانات.");
                 document.getElementById('submit-form-btn').innerHTML = `<i class="fa-solid fa-check"></i> حفظ العنصر`;
             }
             
@@ -1166,6 +1182,9 @@
                 const container = document.getElementById('targetListContainer');
                 container.innerHTML = '';
                 
+                const testItem = this.tests.find(t => t.id === this.currentSharingTestId);
+                const viewedBy = testItem && testItem.viewedBy ? testItem.viewedBy : {};
+
                 let dataToRender = [];
 
                 if(target === 'teachers_db') {
@@ -1173,7 +1192,6 @@
                 } else if(target === 'students_db') {
                     const selectedClass = document.getElementById('targetClassSelect').value;
                     if(selectedClass === 'الكل') {
-                        // Strict check: only include students whose class is strictly in this school's classesList
                         dataToRender = this.dbStudents.filter(s => this.classesList.includes(s.class));
                     } else {
                         dataToRender = this.dbStudents.filter(s => s.class === selectedClass);
@@ -1187,10 +1205,12 @@
 
                 dataToRender.forEach(person => {
                     const extraInfo = person.class ? `<span class="text-[9px] text-slate-400 font-normal mr-1">(${person.class})</span>` : '';
+                    const hasViewedBadge = viewedBy[person.id] ? `<span class="text-[9px] text-emerald-600 font-black bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100 mr-1">👁️ اطلع عليه</span>` : '';
+                    
                     container.innerHTML += `
                         <label class="flex items-center gap-2 p-2 rounded-lg border border-transparent hover:bg-slate-50 hover:border-slate-100 cursor-pointer transition">
                             <input type="checkbox" value="${person.id}" class="w-3.5 h-3.5 text-brand-600 rounded target-checkbox">
-                            <span class="text-[11px] font-bold text-slate-700">${person.name} ${extraInfo}</span>
+                            <span class="text-[11px] font-bold text-slate-700">${person.name} ${extraInfo}${hasViewedBadge}</span>
                         </label>
                     `;
                 });
@@ -1228,6 +1248,8 @@
                 }
 
                 const idx = this.tests.findIndex(t => t.id === this.currentSharingTestId);
+                const testIdToShare = this.currentSharingTestId;
+                
                 if(idx !== -1) {
                     this.tests[idx].permissions = permissions;
                     this.tests[idx].targetAudience = permissions.details;
@@ -1237,13 +1259,13 @@
                 this.closeShareModal();
 
                 if (sendWhatsapp && idx !== -1) {
-                    this.openWhatsappDispatcher(targetType, permissions.selectedIds, this.tests[idx].title, this.tests[idx].type);
+                    this.openWhatsappDispatcher(targetType, permissions.selectedIds, this.tests[idx].title, this.tests[idx].type, testIdToShare);
                 } else {
                     this.showAlert("تم الاعتماد بنجاح", `تم تحديث وإدارة صلاحيات النشر بنجاح.`);
                 }
             }
 
-            openWhatsappDispatcher(targetType, selectedIds, testTitle, itemType) {
+            openWhatsappDispatcher(targetType, selectedIds, testTitle, itemType, testId) {
                 const modal = document.getElementById('whatsapp-modal');
                 const listContainer = document.getElementById('wa-list');
                 listContainer.innerHTML = '';
@@ -1251,11 +1273,20 @@
                 const dbSource = targetType === 'teachers_db' ? this.dbTeachers : this.dbStudents;
                 const selectedPeople = dbSource.filter(p => selectedIds.includes(p.id));
                 const itemTypeName = itemType === 'test' ? 'اختبار' : 'استبانة';
+                
+                const testItem = this.tests.find(t => t.id === testId);
+                const viewedBy = testItem && testItem.viewedBy ? testItem.viewedBy : {};
 
                 selectedPeople.forEach((person, idx) => {
                     const formattedPhone = this.formatPhoneForWhatsApp(person.phone);
                     
-                    const msg = encodeURIComponent(`مرحباً ${person.name}،\n\nنود إشعارك بوجود (${itemTypeName}) متاح لك بعنوان:\n📌 *${testTitle}*\n\nنرجو منك الدخول للبوابة وإتمامه عبر الرابط المخصص لك.\n\nمع تمنياتنا لك بالتوفيق 🌟`);
+                    const hasViewedBadge = viewedBy[person.id] 
+                        ? '<span class="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded font-black mr-2">👁️ اطلع عليه</span>' 
+                        : '<span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded font-bold mr-2">لم يطلع</span>';
+
+                    // تضمين الرابط المطلوب بالاختبار
+                    const testLink = `https://usayd-school.github.io/elvaluationadmingate/?testId=${testId}`;
+                    const msg = encodeURIComponent(`مرحباً ${person.name}،\n\nنود إشعارك بوجود (${itemTypeName}) متاح لك بعنوان:\n📌 *${testTitle}*\n\nنرجو منك الدخول للبوابة وإتمامه عبر الرابط المخصص لك:\n🔗 ${testLink}\n\nمع تمنياتنا لك بالتوفيق 🌟`);
                     const waLink = formattedPhone ? `https://api.whatsapp.com/send?phone=${formattedPhone}&text=${msg}` : '#';
                     
                     const onclickAction = formattedPhone ? `window.open('${waLink}', '_blank'); this.classList.replace('bg-emerald-600', 'bg-slate-300'); this.classList.replace('hover:bg-emerald-700', 'text-slate-500'); this.innerHTML='<i class=\\'fa-solid fa-check\\'></i> تم'; return false;` : 'return false;';
@@ -1267,7 +1298,7 @@
                     listContainer.innerHTML += `
                         <div class="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-xl">
                             <div>
-                                <h5 class="text-xs font-black text-slate-800">${person.name}</h5>
+                                <h5 class="text-xs font-black text-slate-800">${person.name}${hasViewedBadge}</h5>
                                 <p class="text-[10px] text-slate-500 font-bold mt-0.5" dir="ltr">${formattedPhone ? '+'+formattedPhone : 'غير متوفر'}</p>
                             </div>
                             ${btnHtml}
@@ -1345,8 +1376,7 @@
 
                         <div class="flex items-center justify-between pl-16">
                             <div class="flex items-center gap-1">
-                                <span class="px-2.5 py-0.5 rounded-full ${badgeClass} text-[10px] font-black">${badgeText}</span>
-                                ${weightLabel}
+                                <span class="px-2.5 py-0.5 rounded-full ${badgeClass} text-[10px] font-black">${badgeText}</span>${weightLabel}
                             </div>
                         </div>
                         
@@ -1471,10 +1501,14 @@
 
                     let studentsRowsHTML = '';
                     results.forEach(r => {
+                        let hasViewedBadge = (item.viewedBy && item.viewedBy[r.studentId]) || r.totalScore > 0 
+                            ? `<span class="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-black mr-1">👁️ اطلع وحل</span>`
+                            : ( (item.viewedBy && item.viewedBy[r.studentId]) ? `<span class="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-black mr-1">👁️ اطلع فقط</span>` : `` );
+
                         let alertText = Object.entries(r.standardScores).map(([k,v]) => `${k}: ${v}`).join('\\n');
                         studentsRowsHTML += `
                             <tr class="border-b border-slate-100 last:border-0 hover:bg-slate-50 transition">
-                                <td class="py-2.5 px-3 text-[11px] font-bold text-slate-800">${r.studentName}</td>
+                                <td class="py-2.5 px-3 text-[11px] font-bold text-slate-800">${r.studentName} ${hasViewedBadge}</td>
                                 <td class="py-2.5 px-3 text-[11px] font-black text-brand-600 text-center">${r.totalScore} <span class="text-[9px] text-slate-400">/ ${item.targetWeight || item.totalWeight}</span></td>
                                 <td class="py-2.5 px-3 text-[11px] font-bold text-center">
                                     <button onclick="alert('تفاصيل المعايير:\\n${alertText}')" class="px-2.5 py-1 bg-white border border-slate-200 hover:border-brand-300 hover:text-brand-600 rounded-lg text-[10px] transition shadow-2xs">عرض</button>
