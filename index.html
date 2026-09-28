@@ -282,7 +282,37 @@
         </main>
     </div>
 
-    <!-- SHARE & PUBLISH MODAL (DB Permissions & Select Targets) -->
+    <!-- ADD DOMAIN MODAL -->
+    <div id="add-domain-modal" class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 hidden">
+        <div class="glass-card rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl bg-white text-center">
+            <div class="w-12 h-12 rounded-2xl bg-brand-50 text-brand-600 text-xl flex items-center justify-center mx-auto">
+                <i class="fa-solid fa-folder-plus"></i>
+            </div>
+            <h4 class="text-base font-black text-slate-900">إضافة مجال رئيسي جديد</h4>
+            <input type="text" id="newDomainNameInput" placeholder="اسم المجال الجديد..." class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold bg-slate-50 focus:outline-none focus:border-brand-500 text-center">
+            <div class="flex gap-2 pt-2">
+                <button onclick="app.saveNewDomain()" class="flex-1 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs transition">إضافة وحفظ</button>
+                <button onclick="app.closeAddDomainModal()" class="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MOVE DOMAIN MODAL -->
+    <div id="move-domain-modal" class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 hidden">
+        <div class="glass-card rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl bg-white text-center border-t-4 border-indigo-500">
+            <div class="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 text-xl flex items-center justify-center mx-auto shadow-inner">
+                <i class="fa-solid fa-arrows-up-down-left-right"></i>
+            </div>
+            <h4 class="text-base font-black text-slate-900">نقل الاختبار لمجال آخر</h4>
+            <select id="moveDomainSelect" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold bg-slate-50 focus:outline-none focus:border-indigo-500 text-center"></select>
+            <div class="flex gap-2 pt-2">
+                <button onclick="app.confirmMoveDomain()" class="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition">تأكيد النقل</button>
+                <button onclick="app.closeMoveDomainModal()" class="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SHARE & PUBLISH MODAL -->
     <div id="share-modal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 hidden">
         <div class="glass-card rounded-3xl max-w-md w-full p-6 sm:p-8 space-y-5 shadow-2xl bg-white max-h-[90vh] flex flex-col">
             <div class="flex items-center justify-between border-b border-slate-100 pb-4 shrink-0">
@@ -308,16 +338,13 @@
                 <!-- Dynamic Data List Area -->
                 <div class="border border-slate-200 rounded-2xl bg-white overflow-hidden shadow-sm flex flex-col">
                     
-                    <!-- Filter for Students Only -->
                     <div id="studentsClassesBox" class="hidden p-3 bg-slate-50 border-b border-slate-200">
                         <label class="block text-[10px] font-bold text-slate-700 mb-1">اختر الفصل لفلترة الطلاب:</label>
                         <select id="targetClassSelect" onchange="app.updateTargetClassSelectChange()" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold bg-white focus:border-brand-500 outline-none">
                             <option value="الكل">جميع الفصول</option>
-                            <!-- خيارات الفصول تُجلب من الداتابيس -->
                         </select>
                     </div>
 
-                    <!-- Filter by Completion Status -->
                     <div id="statusFilterBox" class="p-3 bg-indigo-50 border-b border-indigo-100">
                         <label class="block text-[10px] font-bold text-indigo-800 mb-1"><i class="fa-solid fa-filter"></i> فلتر حسب حالة الإنجاز (لإرسال تذكير مخصص):</label>
                         <select id="targetStatusSelect" onchange="app.renderPublishTargets()" class="w-full px-3 py-2 rounded-xl border border-indigo-200 text-xs font-bold bg-white focus:border-indigo-500 outline-none text-indigo-700">
@@ -374,21 +401,6 @@
             
             <div class="pt-4 mt-4 border-t border-slate-100 shrink-0">
                 <button onclick="document.getElementById('whatsapp-modal').classList.add('hidden'); app.switchTab('dashboard');" class="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs transition">إنهاء وإغلاق</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- ADD DOMAIN MODAL -->
-    <div id="add-domain-modal" class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 hidden">
-        <div class="glass-card rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl bg-white text-center">
-            <div class="w-12 h-12 rounded-2xl bg-brand-50 text-brand-600 text-xl flex items-center justify-center mx-auto">
-                <i class="fa-solid fa-folder-plus"></i>
-            </div>
-            <h4 class="text-base font-black text-slate-900">إضافة مجال رئيسي جديد</h4>
-            <input type="text" id="newDomainNameInput" placeholder="اسم المجال الجديد..." class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold bg-slate-50 focus:outline-none focus:border-brand-500 text-center">
-            <div class="flex gap-2 pt-2">
-                <button onclick="app.saveNewDomain()" class="flex-1 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs transition">إضافة وحفظ</button>
-                <button onclick="app.closeAddDomainModal()" class="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition">إلغاء</button>
             </div>
         </div>
     </div>
@@ -540,6 +552,7 @@
                 this.currentPermissions = null; 
                 this.selectAllState = false;
                 this.currentSharingTestId = null;
+                this.movingTestId = null; // للمتغير الجديد للنقل
                 
                 this.dbTeachers = [];
                 this.dbStudents = [];
@@ -591,6 +604,61 @@
                 );
             }
 
+            // --- دوال نقل الاختبار لمجال آخر ---
+            openMoveDomainModal(testId) {
+                const item = this.tests.find(t => t.id === testId);
+                if(!item) return;
+                this.movingTestId = testId;
+                const select = document.getElementById('moveDomainSelect');
+                select.innerHTML = '';
+                this.domains.forEach(d => {
+                    select.innerHTML += `<option value="${d}" ${d === item.domain ? 'selected' : ''}>${d}</option>`;
+                });
+                document.getElementById('move-domain-modal').classList.remove('hidden');
+            }
+
+            closeMoveDomainModal() {
+                document.getElementById('move-domain-modal').classList.add('hidden');
+                this.movingTestId = null;
+            }
+
+            confirmMoveDomain() {
+                if(!this.movingTestId) return;
+                const newDomain = document.getElementById('moveDomainSelect').value;
+                const item = this.tests.find(t => t.id === this.movingTestId);
+                if(item) {
+                    item.domain = newDomain;
+                    this.saveData();
+                    this.closeMoveDomainModal();
+                    this.showAlert("تم النقل", "تم نقل الاختبار إلى المجال الجديد بنجاح.");
+                }
+            }
+
+            // --- دالة إعادة تسمية المجال ---
+            renameDomain(oldName) {
+                let newName = prompt("أدخل الاسم الجديد للمجال:", oldName);
+                if (newName && newName.trim() !== "" && newName.trim() !== oldName) {
+                    newName = newName.trim();
+                    if(this.domains.includes(newName)) {
+                        alert("هذا الاسم موجود مسبقاً!");
+                        return;
+                    }
+                    let idx = this.domains.indexOf(oldName);
+                    if (idx !== -1) {
+                        this.domains[idx] = newName;
+                        this.domainStates[newName] = this.domainStates[oldName];
+                        delete this.domainStates[oldName];
+                        
+                        this.tests.forEach(t => {
+                            if(t.domain === oldName) t.domain = newName;
+                        });
+                        this.saveDomains();
+                        this.saveData();
+                        this.showAlert("تم التعديل", `تم إعادة تسمية المجال إلى "${newName}" بنجاح.`);
+                    }
+                }
+            }
+
             editItem(id) {
                 const item = this.tests.find(t => t.id === id);
                 if (!item) return;
@@ -632,7 +700,6 @@
             initializeFirebaseListeners() {
                 const currentSchoolId = localStorage.getItem('deputySchoolId') || "";
 
-                // 1. Fetching Classes
                 database.ref('classes').on('value', snap => {
                     const data = snap.val() || {};
                     if (currentSchoolId === "ADMIN_ALL") {
@@ -653,7 +720,6 @@
                     this.fetchAndFilterStudents(); 
                 });
 
-                // 2. Fetching Teachers
                 database.ref('assignments').on('value', snap => {
                     const data = snap.val() || {};
                     this.dbTeachers = Object.keys(data)
@@ -772,6 +838,23 @@
                         const saved = localStorage.getItem('school_measurement_data_v20');
                         this.tests = saved ? JSON.parse(saved) : [];
                     }
+
+                    // --- الاكتشاف التلقائي للمجالات الجديدة من الاختبارات المُولّدة سحابياً ---
+                    let domainUpdated = false;
+                    this.tests.forEach(t => {
+                        if (t.domain && !this.domains.includes(t.domain)) {
+                            this.domains.push(t.domain);
+                            this.domainStates[t.domain] = true;
+                            domainUpdated = true;
+                        }
+                    });
+                    
+                    if (domainUpdated) {
+                        localStorage.setItem('school_measurement_domains_v2', JSON.stringify(this.domains));
+                        this.updateDomainDropdowns();
+                    }
+                    // -------------------------------------------------------------------
+                    
                     this.render();
                 });
             }
@@ -1478,6 +1561,9 @@
                                 <button onclick="event.stopPropagation(); app.openCreatorForNew('${domainName.replace(/'/g, "\\'")}')" class="px-3.5 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-[11px] font-bold transition flex items-center gap-1 shadow-sm">
                                     <i class="fa-solid fa-plus"></i> إنشاء هنا
                                 </button>
+                                <button onclick="event.stopPropagation(); app.renameDomain('${domainName.replace(/'/g, "\\'")}')" class="w-8 h-8 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-600 flex items-center justify-center text-xs font-bold transition shadow-2xs" title="إعادة تسمية المجال (📝)">
+                                    <i class="fa-solid fa-pen text-[10px]"></i>
+                                </button>
                                 <button onclick="event.stopPropagation(); app.deleteDomain('${domainName.replace(/'/g, "\\'")}')" class="w-8 h-8 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 flex items-center justify-center text-xs font-bold transition shadow-2xs" title="حذف المجال (X)">
                                     <i class="fa-solid fa-trash text-[10px]"></i>
                                 </button>
@@ -1532,6 +1618,7 @@
                             
                             <div class="flex items-center gap-1.5">
                                 <button onclick="app.openShareModal(${item.id})" class="px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold transition flex items-center gap-1"><i class="fa-solid fa-share-nodes"></i> إدارة ونشر</button>
+                                <button onclick="app.openMoveDomainModal(${item.id})" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center text-xs transition" title="نقل لمجال آخر"><i class="fa-solid fa-arrows-up-down-left-right"></i></button>
                                 <button onclick="app.editItem(${item.id})" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center text-xs transition"><i class="fa-solid fa-pen-to-square"></i></button>
                                 <button onclick="app.deleteItem(${item.id})" class="w-8 h-8 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 flex items-center justify-center text-xs transition"><i class="fa-solid fa-trash"></i></button>
                             </div>
@@ -1563,7 +1650,7 @@
                         let weight = parseFloat(std.standardWeight) || 0;
                         let percentage = weight > 0 ? ((avg / weight) * 100).toFixed(0) : 0;
                         
-                        let colorClass = percentage >= 80 ? 'bg-gradient-to-r from-emerald-500 to-emerald-400' : (percentage >= 50 ? 'bg-gradient-to-r from-amber-500 to-amber-400' : 'bg-gradient-to-r from-rose-500 to-rose-400');
+                        let colorClass = percentage >= 80 ? 'bg-emerald-500' : (percentage >= 50 ? 'bg-amber-500' : 'bg-rose-500');
                         let shadowClass = percentage >= 80 ? 'shadow-emerald-500/30' : (percentage >= 50 ? 'shadow-amber-500/30' : 'shadow-rose-500/30');
 
                         standardAveragesHTML += `
