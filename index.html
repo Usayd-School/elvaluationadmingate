@@ -393,6 +393,23 @@
         </div>
     </div>
 
+    <!-- CONFIRM DELETE MODAL -->
+    <div id="confirm-modal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+        <div class="glass-card rounded-3xl max-w-sm w-full p-6 space-y-5 shadow-2xl bg-white text-center border-t-4 border-rose-500 transform transition-all">
+            <div class="w-16 h-16 rounded-full bg-rose-50 text-rose-600 text-3xl flex items-center justify-center mx-auto shadow-inner">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <div>
+                <h4 id="confirm-modal-title" class="text-lg font-black text-slate-900">تأكيد الحذف</h4>
+                <p id="confirm-modal-text" class="text-xs text-slate-500 mt-2 font-bold leading-relaxed">هل أنت متأكد؟</p>
+            </div>
+            <div class="flex gap-3 pt-3">
+                <button id="confirm-btn-yes" class="flex-1 py-3.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs shadow-lg shadow-rose-500/30 transition">نعم، احذف نهائياً</button>
+                <button onclick="document.getElementById('confirm-modal').classList.add('hidden')" class="flex-1 py-3.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-xs transition">إلغاء الأمر</button>
+            </div>
+        </div>
+    </div>
+
     <!-- MESSAGE MODAL -->
     <div id="message-modal" class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 hidden">
         <div class="glass-card rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl bg-white text-center">
@@ -545,6 +562,73 @@
                 this.updateEnergyBar();
             }
 
+            showConfirmDialog(title, text, onConfirm) {
+                document.getElementById('confirm-modal-title').textContent = title;
+                document.getElementById('confirm-modal-text').textContent = text;
+                const modal = document.getElementById('confirm-modal');
+                const yesBtn = document.getElementById('confirm-btn-yes');
+                
+                const newYesBtn = yesBtn.cloneNode(true);
+                yesBtn.parentNode.replaceChild(newYesBtn, yesBtn);
+                
+                newYesBtn.addEventListener('click', () => {
+                    onConfirm();
+                    modal.classList.add('hidden');
+                });
+                
+                modal.classList.remove('hidden');
+            }
+
+            deleteItem(id) {
+                this.showConfirmDialog(
+                    "حذف الاختبار نهائياً",
+                    "هل أنت متأكد من الحذف النهائي لهذا العنصر؟ سيتم إزالته من قاعدة البيانات ولا يمكن التراجع عن هذا الإجراء.",
+                    () => {
+                        this.tests = this.tests.filter(t => t.id !== id);
+                        this.saveData();
+                        this.showAlert("تم الحذف", "تم حذف العنصر نهائياً بنجاح.");
+                    }
+                );
+            }
+
+            editItem(id) {
+                const item = this.tests.find(t => t.id === id);
+                if (!item) return;
+
+                this.editingItemId = id;
+                this.currentPermissions = item.permissions || null;
+                
+                document.getElementById('creator-main-title').textContent = "تعديل وتحديث العنصر الحالي";
+                document.getElementById('submit-form-btn').innerHTML = `<i class="fa-solid fa-save"></i> حفظ التعديلات`;
+                
+                this.setCreatorType(item.type);
+                
+                document.getElementById('input-title').value = item.title || '';
+                this.updateDomainDropdowns();
+                document.getElementById('input-domain').value = item.domain || '';
+                document.getElementById('input-unit').value = item.unitName || '';
+                document.getElementById('input-intro').value = item.introText || '';
+                document.getElementById('input-duration').value = item.duration || 30;
+                document.getElementById('input-target-weight').value = item.targetWeight || item.totalWeight || 100;
+                if(item.colorTheme) document.getElementById('input-color').value = item.colorTheme;
+
+                const container = document.getElementById('standards-builder-container');
+                container.innerHTML = '';
+                
+                if (item.standardsSections && item.standardsSections.length > 0) {
+                    item.standardsSections.forEach(std => {
+                        this.addStandardSectionRowWithData(container, std);
+                    });
+                } else {
+                    this.renderCreatorItems();
+                }
+                
+                this.updateTotalWeight();
+                this.updateEnergyBar();
+                this.switchTab('creator');
+                if(!this.introSectionOpen) this.toggleIntroSection();
+            }
+
             initializeFirebaseListeners() {
                 const currentSchoolId = localStorage.getItem('deputySchoolId') || "";
 
@@ -655,14 +739,19 @@
                 this.saveDomains();
                 this.closeAddDomainModal();
             }
+            
             deleteDomain(domainName) {
-                if(confirm(`⚠️ هل أنت متأكد من حذف المجال بالكامل: (${domainName})؟`)) {
-                    this.domains = this.domains.filter(d => d !== domainName);
-                    delete this.domainStates[domainName];
-                    this.tests = this.tests.filter(t => t.domain !== domainName);
-                    this.saveDomains();
-                    this.saveData();
-                }
+                this.showConfirmDialog(
+                    "حذف المجال الرئيسي",
+                    `⚠️ هل أنت متأكد من حذف المجال بالكامل: (${domainName})؟ سيتم حذف كافة الاختبارات المرتبطة به.`,
+                    () => {
+                        this.domains = this.domains.filter(d => d !== domainName);
+                        delete this.domainStates[domainName];
+                        this.tests = this.tests.filter(t => t.domain !== domainName);
+                        this.saveDomains();
+                        this.saveData();
+                    }
+                );
             }
 
             updateDomainDropdowns() {
@@ -1474,16 +1563,19 @@
                         let weight = parseFloat(std.standardWeight) || 0;
                         let percentage = weight > 0 ? ((avg / weight) * 100).toFixed(0) : 0;
                         
-                        let colorClass = percentage >= 80 ? 'bg-emerald-500' : (percentage >= 50 ? 'bg-amber-500' : 'bg-rose-500');
+                        let colorClass = percentage >= 80 ? 'bg-gradient-to-r from-emerald-500 to-emerald-400' : (percentage >= 50 ? 'bg-gradient-to-r from-amber-500 to-amber-400' : 'bg-gradient-to-r from-rose-500 to-rose-400');
+                        let shadowClass = percentage >= 80 ? 'shadow-emerald-500/30' : (percentage >= 50 ? 'shadow-amber-500/30' : 'shadow-rose-500/30');
 
                         standardAveragesHTML += `
-                            <div class="mb-3">
-                                <div class="flex justify-between items-end text-[10px] font-bold text-slate-700 mb-1.5">
-                                    <span class="truncate max-w-[65%]">${std.standardTitle}</span>
-                                    <span class="text-brand-600 font-black">${avg} <span class="text-slate-400 font-normal">/ ${weight}</span> (${percentage}%)</span>
+                            <div class="mb-4 bg-slate-50/50 p-3 rounded-xl border border-slate-100 transition hover:border-slate-200 hover:bg-slate-50">
+                                <div class="flex justify-between items-end text-[11px] font-bold text-slate-700 mb-2">
+                                    <span class="truncate max-w-[65%] flex items-center gap-1.5"><i class="fa-solid fa-crosshairs text-slate-400 text-[10px]"></i> ${std.standardTitle}</span>
+                                    <span class="text-slate-800 font-black bg-white px-2 py-0.5 rounded shadow-sm border border-slate-100">${avg} <span class="text-slate-400 font-normal">/ ${weight}</span> <span class="${percentage >= 50 ? 'text-brand-600' : 'text-rose-600'}">(${percentage}%)</span></span>
                                 </div>
-                                <div class="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                                    <div class="h-full ${colorClass} progress-bar-fill" style="width: ${percentage}%"></div>
+                                <div class="h-3 w-full bg-slate-200 rounded-full overflow-hidden shadow-inner">
+                                    <div class="h-full ${colorClass} progress-bar-fill shadow-lg ${shadowClass} relative" style="width: ${percentage}%">
+                                        <div class="absolute inset-0 bg-white/20 w-full h-full" style="background-image: linear-gradient(45deg, rgba(255,255,255,.15) 25%, transparent 25%, transparent 50%, rgba(255,255,255,.15) 50%, rgba(255,255,255,.15) 75%, transparent 75%, transparent); background-size: 1rem 1rem;"></div>
+                                    </div>
                                 </div>
                             </div>
                         `;
