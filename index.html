@@ -10,6 +10,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Google Fonts Cairo -->
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- Chart.js for Radar Charts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
@@ -50,6 +52,42 @@
         
         .progress-bar-fill {
             transition: width 0.4s ease-in-out, background-color 0.4s ease;
+        }
+
+        /* Print Styles */
+        @media print {
+            body.print-mode #appContainer, 
+            body.print-mode header, 
+            body.print-mode .no-print { 
+                display: none !important; 
+            }
+            body.print-mode #report-view-modal {
+                position: relative !important;
+                display: block !important;
+                width: 100% !important;
+                height: auto !important;
+                background: white !important;
+            }
+            body.print-mode #report-view-modal > div {
+                box-shadow: none !important;
+                border: none !important;
+                height: auto !important;
+                max-width: 100% !important;
+            }
+            body.print-mode #report-view-content {
+                overflow: visible !important;
+                height: auto !important;
+                background: white !important;
+            }
+            .report-page {
+                page-break-after: always;
+                box-shadow: none !important;
+                border-color: #e2e8f0 !important;
+                background: white !important;
+            }
+            .report-page:last-child {
+                page-break-after: auto;
+            }
         }
     </style>
 </head>
@@ -384,8 +422,64 @@
         </div>
     </div>
 
+    <!-- REPORT CONFIG MODAL -->
+    <div id="report-config-modal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 hidden no-print">
+        <div class="glass-card rounded-3xl max-w-md w-full p-6 space-y-5 shadow-2xl bg-white max-h-[90vh] flex flex-col">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+                <h4 class="text-lg font-black text-brand-600 flex items-center gap-2">
+                    <i class="fa-solid fa-chart-pie"></i> طلب تقرير تفصيلي
+                </h4>
+                <button onclick="app.closeReportConfig()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1.5">الفصل المستهدف</label>
+                    <select id="report-class-select" onchange="app.updateReportStudentList()" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold bg-slate-50 focus:bg-white focus:border-brand-500 outline-none transition">
+                        <option value="all">جميع الفصول</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1.5">الطلاب (بناءً على نتائجهم)</label>
+                    <select id="report-student-select" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold bg-slate-50 focus:bg-white focus:border-brand-500 outline-none transition">
+                        <option value="all">جميع الطلاب</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1.5">شروط الفلترة المتقدمة</label>
+                    <select id="report-condition-select" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold bg-slate-50 focus:bg-white focus:border-brand-500 outline-none transition text-brand-700">
+                        <option value="none">متابعة تقرير الطالب</option>
+                        <option value="top_5">افضل 5 في الإنجاز </option>
+                        <option value="bottom_5">أقل 5 في الإنجاز (للمتابعة)</option>
+                    </select>
+                </div>
+            </div>
+            <button onclick="app.generateReport()" class="w-full py-3.5 mt-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm shadow-md transition flex items-center justify-center gap-2">
+                <i class="fa-solid fa-wand-magic-sparkles"></i> الاطلاع على التقرير 
+            </button>
+        </div>
+    </div>
+
+    <!-- REPORT VIEW MODAL -->
+    <div id="report-view-modal" class="fixed inset-0 z-[60] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 hidden">
+        <div class="glass-card rounded-3xl w-full max-w-5xl h-[95vh] sm:h-[90vh] bg-white flex flex-col shadow-2xl overflow-hidden relative">
+            <div class="p-4 sm:p-6 bg-slate-50 border-b border-slate-200 flex items-center justify-between shrink-0 no-print">
+                <div>
+                    <h3 class="text-lg sm:text-xl font-black text-slate-900">التقرير التفصيلي ومقارنة الأداء</h3>
+                    <p class="text-xs text-brand-600 font-bold mt-1" id="report-view-subtitle"></p>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="app.printReport()" class="px-4 py-2 rounded-xl bg-indigo-50 text-indigo-600 hover:bg-indigo-100 font-bold text-xs transition shadow-sm"><i class="fa-solid fa-print"></i> طباعة التقرير</button>
+                    <button onclick="app.closeReportView()" class="w-9 h-9 rounded-xl bg-slate-200 hover:bg-slate-300 flex items-center justify-center text-slate-700 transition shadow-sm"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+            </div>
+            <div id="report-view-content" class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-8 bg-slate-100 custom-scrollbar">
+                <!-- Reports will be injected here -->
+            </div>
+        </div>
+    </div>
+
     <!-- WHATSAPP DISPATCHER MODAL -->
-    <div id="whatsapp-modal" class="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div id="whatsapp-modal" class="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 hidden no-print">
         <div class="glass-card rounded-3xl max-w-md w-full p-6 shadow-2xl bg-white max-h-[85vh] flex flex-col border-t-4 border-emerald-500">
             <div class="flex justify-between items-center border-b border-slate-100 pb-4 mb-4 shrink-0">
                 <div>
@@ -406,7 +500,7 @@
     </div>
 
     <!-- CONFIRM DELETE MODAL -->
-    <div id="confirm-modal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div id="confirm-modal" class="fixed inset-0 z-[70] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 hidden no-print">
         <div class="glass-card rounded-3xl max-w-sm w-full p-6 space-y-5 shadow-2xl bg-white text-center border-t-4 border-rose-500 transform transition-all">
             <div class="w-16 h-16 rounded-full bg-rose-50 text-rose-600 text-3xl flex items-center justify-center mx-auto shadow-inner">
                 <i class="fa-solid fa-triangle-exclamation"></i>
@@ -423,7 +517,7 @@
     </div>
 
     <!-- MESSAGE MODAL -->
-    <div id="message-modal" class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 hidden">
+    <div id="message-modal" class="fixed inset-0 z-[70] bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 hidden no-print">
         <div class="glass-card rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl bg-white text-center">
             <div class="w-12 h-12 rounded-2xl bg-brand-50 text-brand-600 text-xl flex items-center justify-center mx-auto">
                 <i class="fa-solid fa-circle-info"></i>
@@ -552,7 +646,9 @@
                 this.currentPermissions = null; 
                 this.selectAllState = false;
                 this.currentSharingTestId = null;
-                this.movingTestId = null; // للمتغير الجديد للنقل
+                this.movingTestId = null; 
+                this.currentReportTestId = null;
+                this.reportStudentsData = [];
                 
                 this.dbTeachers = [];
                 this.dbStudents = [];
@@ -597,16 +693,15 @@
                     "حذف الاختبار نهائياً",
                     "هل أنت متأكد من الحذف النهائي لهذا العنصر؟ سيتم إزالته من قاعدة البيانات ولا يمكن التراجع عن هذا الإجراء.",
                     () => {
-                        this.tests = this.tests.filter(t => t.id !== id);
+                        this.tests = this.tests.filter(t => String(t.id) !== String(id));
                         this.saveData();
                         this.showAlert("تم الحذف", "تم حذف العنصر نهائياً بنجاح.");
                     }
                 );
             }
 
-            // --- دوال نقل الاختبار لمجال آخر ---
             openMoveDomainModal(testId) {
-                const item = this.tests.find(t => t.id === testId);
+                const item = this.tests.find(t => String(t.id) === String(testId));
                 if(!item) return;
                 this.movingTestId = testId;
                 const select = document.getElementById('moveDomainSelect');
@@ -625,7 +720,7 @@
             confirmMoveDomain() {
                 if(!this.movingTestId) return;
                 const newDomain = document.getElementById('moveDomainSelect').value;
-                const item = this.tests.find(t => t.id === this.movingTestId);
+                const item = this.tests.find(t => String(t.id) === String(this.movingTestId));
                 if(item) {
                     item.domain = newDomain;
                     this.saveData();
@@ -634,7 +729,6 @@
                 }
             }
 
-            // --- دالة إعادة تسمية المجال ---
             renameDomain(oldName) {
                 let newName = prompt("أدخل الاسم الجديد للمجال:", oldName);
                 if (newName && newName.trim() !== "" && newName.trim() !== oldName) {
@@ -660,7 +754,7 @@
             }
 
             editItem(id) {
-                const item = this.tests.find(t => t.id === id);
+                const item = this.tests.find(t => String(t.id) === String(id));
                 if (!item) return;
 
                 this.editingItemId = id;
@@ -733,8 +827,13 @@
                             phone: data[k].teacherPhone || '',
                             subject: data[k].subject || ''
                         }));
+                        
                     if(document.getElementById('share-modal') && !document.getElementById('share-modal').classList.contains('hidden')) {
                         this.renderPublishTargets();
+                    }
+                    // التحديث التلقائي للتقارير عند جلب البيانات
+                    if(this.tests && this.tests.length > 0) {
+                        this.renderComprehensiveIndicators();
                     }
                 });
             }
@@ -758,6 +857,10 @@
                     
                     if(document.getElementById('share-modal') && !document.getElementById('share-modal').classList.contains('hidden')) {
                         this.renderPublishTargets();
+                    }
+                    // التحديث التلقائي للتقارير عند جلب البيانات (يحل مشكلة جاري التحميل)
+                    if(this.tests && this.tests.length > 0) {
+                        this.renderComprehensiveIndicators();
                     }
                 });
             }
@@ -839,7 +942,6 @@
                         this.tests = saved ? JSON.parse(saved) : [];
                     }
 
-                    // --- الاكتشاف التلقائي للمجالات الجديدة من الاختبارات المُولّدة سحابياً ---
                     let domainUpdated = false;
                     this.tests.forEach(t => {
                         if (t.domain && !this.domains.includes(t.domain)) {
@@ -853,7 +955,6 @@
                         localStorage.setItem('school_measurement_domains_v2', JSON.stringify(this.domains));
                         this.updateDomainDropdowns();
                     }
-                    // -------------------------------------------------------------------
                     
                     this.render();
                 });
@@ -976,7 +1077,7 @@
                 display.textContent = total;
                 
                 if (total === targetWeight) {
-                    statusText.textContent = `الوزن المستهدف: ${targetWeight} (متطابق ✔️)`;
+                    statusText.textContent = `الوزن المستهدف: ${targetWeight} (متطابق ✔️️)`;
                     badge.classList.replace('bg-rose-500', 'bg-emerald-500');
                     badge.classList.replace('border-rose-400', 'border-emerald-400');
                 } else {
@@ -1274,12 +1375,12 @@
                     type: this.creatorType,
                     title, domain, unitName, introText, duration, colorTheme, standardsSections, totalWeight, targetWeight,
                     permissions: this.currentPermissions,
-                    status: this.editingItemId ? (this.tests.find(t=>t.id===this.editingItemId)?.status || 'active') : 'active',
-                    viewedBy: this.editingItemId ? (this.tests.find(t=>t.id===this.editingItemId)?.viewedBy || {}) : {}
+                    status: this.editingItemId ? (this.tests.find(t=>String(t.id)===String(this.editingItemId))?.status || 'active') : 'active',
+                    viewedBy: this.editingItemId ? (this.tests.find(t=>String(t.id)===String(this.editingItemId))?.viewedBy || {}) : {}
                 };
 
                 if(this.editingItemId) {
-                    const idx = this.tests.findIndex(t => t.id === this.editingItemId);
+                    const idx = this.tests.findIndex(t => String(t.id) === String(this.editingItemId));
                     if(idx !== -1) this.tests[idx] = this.pendingPublishData;
                     this.editingItemId = null;
                 } else {
@@ -1293,7 +1394,7 @@
             }
             
             toggleTestStatus(id) {
-                const idx = this.tests.findIndex(t => t.id === id);
+                const idx = this.tests.findIndex(t => String(t.id) === String(id));
                 if(idx !== -1) {
                     this.tests[idx].status = this.tests[idx].status === 'closed' ? 'active' : 'closed';
                     this.saveData();
@@ -1301,7 +1402,7 @@
             }
 
             openShareModal(id) {
-                const item = this.tests.find(t => t.id === id);
+                const item = this.tests.find(t => String(t.id) === String(id));
                 if(!item) return;
                 
                 this.currentSharingTestId = id;
@@ -1309,7 +1410,6 @@
                 document.getElementById('selectAllBtn').textContent = "تحديد الكل";
                 document.getElementById('sendWhatsappCheck').checked = false;
                 
-                // تصفير الفلتر
                 const statusSelect = document.getElementById('targetStatusSelect');
                 if(statusSelect) statusSelect.value = 'all';
 
@@ -1357,7 +1457,7 @@
                 const container = document.getElementById('targetListContainer');
                 container.innerHTML = '';
                 
-                const testItem = this.tests.find(t => t.id === this.currentSharingTestId);
+                const testItem = this.tests.find(t => String(t.id) === String(this.currentSharingTestId));
                 const viewedBy = testItem && testItem.viewedBy ? testItem.viewedBy : {};
                 const results = testItem && testItem.results ? testItem.results : [];
                 const completedNames = results.map(r => r.studentName);
@@ -1375,7 +1475,6 @@
                     }
                 }
 
-                // تطبيق الفلترة حسب الحالة المحددة (أتم الحل / لم يطلع)
                 dataToRender = dataToRender.filter(person => {
                     const isCompleted = completedNames.includes(person.name);
                     
@@ -1435,7 +1534,6 @@
                     return;
                 }
 
-                // الحفاظ على الصلاحيات الكلية وعدم استبدالها بالفلتر الجزئي (المستخدم يفلتر للإرسال فقط)
                 const statusFilter = document.getElementById('targetStatusSelect') ? document.getElementById('targetStatusSelect').value : 'all';
                 let permissions = { type: targetType, details: "", selectedIds: checkedBoxes.map(cb => cb.value) };
 
@@ -1446,11 +1544,10 @@
                     permissions.details = selectedClass === 'الكل' ? "طلاب محددين من فصول مختلفة" : `طلاب محددين من ${selectedClass}`;
                 }
 
-                const idx = this.tests.findIndex(t => t.id === this.currentSharingTestId);
+                const idx = this.tests.findIndex(t => String(t.id) === String(this.currentSharingTestId));
                 const testIdToShare = this.currentSharingTestId;
                 
                 if(idx !== -1) {
-                    // إذا كان الفلتر "all"، نقوم بتحديث الصلاحيات الرئيسية للاختبار. أما إذا كان يفلتر فقط للرسائل فنحافظ على القديمة
                     if (statusFilter === 'all') {
                         this.tests[idx].permissions = permissions;
                         this.tests[idx].targetAudience = permissions.details;
@@ -1491,10 +1588,11 @@
                 listContainer.innerHTML = '';
 
                 const dbSource = targetType === 'teachers_db' ? this.dbTeachers : this.dbStudents;
-                const selectedPeople = dbSource.filter(p => selectedIds.includes(p.id));
+                
+                const selectedPeople = dbSource.filter(p => selectedIds.some(id => String(id) === String(p.id) || id === p.name));
                 const itemTypeName = itemType === 'test' ? 'اختبار' : 'استبانة';
                 
-                const testItem = this.tests.find(t => t.id === testId);
+                const testItem = this.tests.find(t => String(t.id) === String(testId));
                 const viewedBy = testItem && testItem.viewedBy ? testItem.viewedBy : {};
                 const results = testItem && testItem.results ? testItem.results : [];
                 const completedNames = results.map(r => r.studentName);
@@ -1529,6 +1627,288 @@
                 });
 
                 modal.classList.remove('hidden');
+            }
+
+            // --- دوال طلب التقارير التفصيلية ---
+            openReportConfig(testId) {
+                this.currentReportTestId = testId;
+                const test = this.tests.find(t => String(t.id) === String(testId));
+                if (!test) return;
+                
+                const results = test.results || [];
+                let classesSet = new Set();
+                let studentsList = [];
+                
+                results.forEach(r => {
+                    let st = this.dbStudents.find(s => s.name === r.studentName);
+                    let stClass = st ? st.class : 'غير محدد';
+                    classesSet.add(stClass);
+                    studentsList.push({name: r.studentName, class: stClass, score: r.totalScore});
+                });
+                
+                this.reportStudentsData = studentsList; 
+                
+                const classSelect = document.getElementById('report-class-select');
+                classSelect.innerHTML = '<option value="all">جميع الفصول</option>';
+                classesSet.forEach(c => {
+                    classSelect.innerHTML += `<option value="${c}">${c}</option>`;
+                });
+                
+                this.updateReportStudentList();
+                document.getElementById('report-condition-select').value = 'none';
+                document.getElementById('report-config-modal').classList.remove('hidden');
+            }
+
+            updateReportStudentList() {
+                const cls = document.getElementById('report-class-select').value;
+                const stuSelect = document.getElementById('report-student-select');
+                stuSelect.innerHTML = '<option value="all">جميع الطلاب (الذين اختبروا)</option>';
+                
+                let filtered = this.reportStudentsData || [];
+                if (cls !== 'all') {
+                    filtered = filtered.filter(s => s.class === cls);
+                }
+                
+                filtered.forEach(s => {
+                    stuSelect.innerHTML += `<option value="${s.name}">${s.name}</option>`;
+                });
+            }
+            
+            closeReportConfig() { 
+                document.getElementById('report-config-modal').classList.add('hidden'); 
+            }
+            
+            closeReportView() { 
+                document.getElementById('report-view-modal').classList.add('hidden'); 
+            }
+
+            printReport() {
+                document.body.classList.add('print-mode');
+                window.print();
+                setTimeout(() => document.body.classList.remove('print-mode'), 500);
+            }
+
+            generateReport() {
+                const testId = this.currentReportTestId;
+                const test = this.tests.find(t => String(t.id) === String(testId));
+                if (!test) return;
+                
+                const results = test.results || [];
+                
+                const cls = document.getElementById('report-class-select').value;
+                const stu = document.getElementById('report-student-select').value;
+                const condition = document.getElementById('report-condition-select').value;
+                
+                this.closeReportConfig();
+                
+                let filteredResults = results.map(r => {
+                    let st = this.dbStudents.find(s => s.name === r.studentName);
+                    return { ...r, className: st ? st.class : 'غير محدد' };
+                });
+
+                if (cls !== 'all') filteredResults = filteredResults.filter(r => r.className === cls);
+                if (stu !== 'all') filteredResults = filteredResults.filter(r => r.studentName === stu);
+                
+                if (condition === 'top_5') {
+                    filteredResults.sort((a, b) => b.totalScore - a.totalScore);
+                    filteredResults = filteredResults.slice(0, 5);
+                } else if (condition === 'bottom_5') {
+                    filteredResults.sort((a, b) => a.totalScore - b.totalScore);
+                    filteredResults = filteredResults.slice(0, 5);
+                }
+                
+                if(filteredResults.length === 0) {
+                    this.showAlert("تنبيه", "لا توجد نتائج مطابقة للشروط المحددة لتوليد التقرير.");
+                    return;
+                }
+                
+                const classAverages = {};
+                test.standardsSections.forEach(std => {
+                    let total = 0;
+                    results.forEach(r => total += (r.standardScores[std.standardTitle] || 0));
+                    classAverages[std.standardTitle] = results.length > 0 ? parseFloat((total / results.length).toFixed(1)) : 0;
+                });
+                let totalClassAvg = results.length > 0 ? parseFloat((results.reduce((sum, r) => sum + r.totalScore, 0) / results.length).toFixed(1)) : 0;
+                
+                const content = document.getElementById('report-view-content');
+                content.innerHTML = '';
+                document.getElementById('report-view-subtitle').textContent = `التقرير المخصص لـ: ${test.title} - (${filteredResults.length} طلاب)`;
+                
+                filteredResults.forEach((res, index) => {
+                    const chartId = `radar-chart-${index}`;
+                    
+                    let stdRows = '';
+                    test.standardsSections.forEach(std => {
+                        let score = res.standardScores[std.standardTitle] || 0;
+                        let max = parseFloat(std.standardWeight) || 0;
+                        let avg = classAverages[std.standardTitle];
+                        
+                        let pct = max > 0 ? ((score / max) * 100).toFixed(0) : 0;
+                        let color = pct >= 80 ? 'text-emerald-600' : (pct >= 50 ? 'text-amber-500' : 'text-rose-500');
+                        
+                        let icon = score >= avg ? '<i class="fa-solid fa-arrow-trend-up text-emerald-500"></i> أعلى من الأقران' : '<i class="fa-solid fa-arrow-trend-down text-rose-500"></i> أقل من الأقران';
+                        if (score === avg) icon = '<i class="fa-solid fa-equals text-amber-500"></i> ضمن المتوسط';
+
+                        stdRows += `
+                            <div class="flex items-center justify-between p-3.5 bg-white border border-slate-200 rounded-xl mb-3 shadow-xs">
+                                <div>
+                                    <h5 class="text-[11px] font-black text-slate-800">${std.standardTitle}</h5>
+                                    <p class="text-[10px] text-slate-500 font-bold mt-1.5">${icon}</p>
+                                </div>
+                                <div class="text-left border-r border-slate-100 pr-3">
+                                    <div class="text-base font-black ${color}">${score} <span class="text-[10px] text-slate-400">/ ${max}</span></div>
+                                    <div class="text-[9px] font-black text-slate-500 bg-slate-50 px-1.5 py-0.5 rounded mt-1">متوسط الدفعة: ${avg}</div>
+                                </div>
+                            </div>
+                        `;
+                    });
+
+                    content.innerHTML += `
+                        <div class="bg-white rounded-3xl border border-slate-200 p-6 shadow-md report-page mb-6">
+                            <div class="flex items-center justify-between border-b border-slate-100 pb-5 mb-5">
+                                <div>
+                                    <h3 class="text-xl sm:text-2xl font-black text-brand-700">${res.studentName}</h3>
+                                    <p class="text-xs text-slate-500 font-bold mt-1.5"><i class="fa-solid fa-graduation-cap"></i> الفصل: ${res.className}</p>
+                                </div>
+                                <div class="text-center bg-slate-50 p-3.5 rounded-2xl border border-slate-200 min-w-[120px]">
+                                    <div class="text-[10px] font-black text-slate-500 mb-1">الدرجة الكلية</div>
+                                    <div class="text-2xl font-black text-slate-900">${res.totalScore} <span class="text-xs text-slate-400">/ ${test.targetWeight || test.totalWeight}</span></div>
+                                    <div class="text-[9px] font-bold mt-1.5 ${res.totalScore >= totalClassAvg ? 'text-emerald-600' : 'text-rose-500'}">متوسط الدفعة ككل: ${totalClassAvg}</div>
+                                </div>
+                            </div>
+                            
+                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+                                <div>
+                                    <h4 class="text-sm font-black text-slate-800 mb-4 flex items-center gap-2"><i class="fa-solid fa-list-check text-brand-500"></i> تفاصيل الأداء بالمعايير الفرعية</h4>
+                                    ${stdRows}
+                                </div>
+                                <div class="bg-slate-50 rounded-3xl border border-slate-200 p-5 flex flex-col items-center justify-center h-full min-h-[350px]">
+                                    <h4 class="text-sm font-black text-slate-800 mb-4 w-full text-right"><i class="fa-solid fa-chart-pie text-brand-500"></i> مخطط (المثلثة) مستوى الطالب مقارنة بالأقران</h4>
+                                    <div class="relative w-full max-w-sm aspect-square flex-grow">
+                                        <canvas id="${chartId}"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                document.getElementById('report-view-modal').classList.remove('hidden');
+
+                // رسم المخططات بعد بناء عناصر الـ DOM
+                filteredResults.forEach((res, index) => {
+                    const chartId = `radar-chart-${index}`;
+                    const ctx = document.getElementById(chartId).getContext('2d');
+                    
+                    const labels = test.standardsSections.map(s => {
+                        return s.standardTitle.length > 25 ? s.standardTitle.substring(0, 25) + '...' : s.standardTitle;
+                    });
+                    
+                    const maxWeights = test.standardsSections.map(s => parseFloat(s.standardWeight) || 1);
+                    
+                    // تحويل الدرجات إلى نسبة مئوية ليتزن شكل الرادار المعياري
+                    const studentData = test.standardsSections.map((s, i) => {
+                        let score = res.standardScores[s.standardTitle] || 0;
+                        return ((score / maxWeights[i]) * 100).toFixed(1);
+                    });
+                    
+                    const peersData = test.standardsSections.map((s, i) => {
+                        let avg = classAverages[s.standardTitle] || 0;
+                        return ((avg / maxWeights[i]) * 100).toFixed(1);
+                    });
+                    
+                    new Chart(ctx, {
+                        type: 'radar',
+                        data: {
+                            labels: labels,
+                            datasets: [
+                                {
+                                    label: 'مستوى الطالب %',
+                                    data: studentData,
+                                    backgroundColor: 'rgba(79, 70, 229, 0.4)',
+                                    borderColor: 'rgba(79, 70, 229, 1)',
+                                    pointBackgroundColor: 'rgba(79, 70, 229, 1)',
+                                    borderWidth: 2,
+                                    fill: true
+                                },
+                                {
+                                    label: 'متوسط أقرانه %',
+                                    data: peersData,
+                                    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                                    borderColor: 'rgba(16, 185, 129, 1)',
+                                    pointBackgroundColor: 'rgba(16, 185, 129, 1)',
+                                    borderDash: [5, 5],
+                                    borderWidth: 2,
+                                    fill: true
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                r: {
+                                    beginAtZero: true,
+                                    max: 100,
+                                    ticks: { display: false },
+                                    pointLabels: {
+                                        font: { family: 'Cairo', size: 10, weight: 'bold' },
+                                        color: '#475569'
+                                    }
+                                }
+                            },
+                            plugins: {
+                                legend: {
+                                    labels: { font: { family: 'Cairo', size: 11, weight: 'bold' } },
+                                    position: 'bottom'
+                                },
+                                tooltip: {
+                                    bodyFont: { family: 'Cairo', size: 11 },
+                                    titleFont: { family: 'Cairo', size: 12 },
+                                    callbacks: {
+                                        label: function(context) {
+                                            return context.dataset.label + ': ' + context.raw + '%';
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                });
+            }
+
+            // --- التذكير الجماعي للمتأخرين ---
+            openBulkReminder(testId) {
+                const testItem = this.tests.find(t => String(t.id) === String(testId));
+                if(!testItem) return;
+
+                let targetIds = testItem.permissions && testItem.permissions.selectedIds ? testItem.permissions.selectedIds : [];
+                if(targetIds.length === 0) {
+                    this.showAlert("تنبيه", "لا يوجد مستفيدين محددين مسبقاً لهذا الاختبار لإرسال تذكير لهم.");
+                    return;
+                }
+
+                const results = testItem.results || [];
+                const completedNames = results.map(r => r.studentName);
+                
+                const allUsers = [...this.dbStudents, ...this.dbTeachers];
+                let pendingIds = [];
+                
+                targetIds.forEach(id => {
+                    let user = allUsers.find(u => String(u.id) === String(id) || u.name === id);
+                    let userName = user ? user.name : (String(id).includes("-") ? "" : id); 
+                    if (userName && !completedNames.includes(userName)) {
+                        pendingIds.push(user ? user.id : id); 
+                    }
+                });
+
+                if (pendingIds.length === 0) {
+                    this.showAlert("رائع!", "جميع المستفيدين المحددين أتموا الحل، لا يوجد متأخرين لتذكيرهم.");
+                    return;
+                }
+
+                const targetType = testItem.permissions.type || 'students_db'; 
+                this.openWhatsappDispatcher(targetType, pendingIds, testItem.title, testItem.type, testItem.id);
             }
 
             render() {
@@ -1668,7 +2048,6 @@
                         `;
                     });
 
-                    // بناء الأعمدة الديناميكية لجدول الطلاب حسب المعايير المتاحة
                     let theadHTML = `
                         <tr>
                             <th class="py-3 px-3 text-[9px] font-black text-slate-500 uppercase text-right border-b border-slate-200">الاسم والحالة</th>
@@ -1677,16 +2056,54 @@
                     item.standardsSections.forEach(std => {
                          theadHTML += `<th class="py-3 px-2 text-[8px] font-black text-slate-500 text-center uppercase truncate max-w-[70px] border-b border-slate-200" title="${std.standardTitle}">${std.standardTitle}</th>`;
                     });
-                    theadHTML += `<th class="py-3 px-3 text-[9px] font-black text-slate-500 text-center uppercase border-b border-slate-200">مراسلة</th></tr>`;
+                    theadHTML += `<th class="py-3 px-3 text-[9px] font-black text-slate-500 text-center uppercase border-b border-slate-200">مراسلة / تذكير</th></tr>`;
 
-                    // جلب قائمة الأشخاص المستهدفين 
+                    // --- الإصلاح النهائي والشامل لمشكلة اختفاء الطلاب ---
                     const allUsers = [...this.dbStudents, ...this.dbTeachers];
-                    let targetPeople = [];
+                    let targetPeopleList = [];
+
+                    // 1- نضيف الطلاب الذين أتموا الحل بالفعل (ببياناتهم الكاملة)
+                    results.forEach(r => {
+                        let u = allUsers.find(user => user.name === r.studentName);
+                        targetPeopleList.push({
+                            id: u ? u.id : ("res_" + Math.random().toString(36).substr(2, 9)),
+                            name: r.studentName,
+                            phone: r.studentPhone || (u ? u.phone : '')
+                        });
+                    });
+
+                    // 2- نضيف المستهدفين (الذين تم إرسال الاختبار لهم ولم يحلوا بعد)
                     if (targetIds.length > 0) {
-                        targetPeople = targetIds.map(id => allUsers.find(u => u.id === id) || {id: id, name: "مستخدم غير معروف", phone: ""});
-                    } else if (results.length > 0) {
-                        targetPeople = results.map(r => ({id: Math.random().toString(), name: r.studentName, phone: r.studentPhone || ''}));
+                        targetIds.forEach(id => {
+                            let user = allUsers.find(u => String(u.id) === String(id) || u.name === id);
+                            
+                            if (user) {
+                                // التأكد من عدم تكراره إذا كان قد أتم الحل وأضيف في الخطوة الأولى
+                                if (!targetPeopleList.some(p => p.name === user.name)) {
+                                    targetPeopleList.push({
+                                        id: user.id,
+                                        name: user.name,
+                                        phone: user.phone
+                                    });
+                                }
+                            } else {
+                                // إذا لم يتم تحميل بيانات الطلاب بعد من الفايربيس (جاري التحميل) أو الطالب محذوف
+                                if (!targetPeopleList.some(p => String(p.id) === String(id) || p.name === id)) {
+                                    let isFirebaseId = String(id).startsWith("-");
+                                    let tempName = isFirebaseId ? "جاري تحميل الاسم..." : id; 
+                                    // سنستخدم "جاري تحميل الاسم" لأن النظام سيحدث الواجهة تلقائياً عند وصول البيانات
+                                    targetPeopleList.push({
+                                        id: id,
+                                        name: tempName,
+                                        phone: ""
+                                    });
+                                }
+                            }
+                        });
                     }
+
+                    let targetPeople = targetPeopleList;
+                    // ------------------------------------------------
 
                     let studentsRowsHTML = '';
                     targetPeople.forEach(person => {
@@ -1722,15 +2139,23 @@
                         let totalScoreText = r ? `<span class="font-black text-brand-600">${r.totalScore}</span> <span class="text-[8px] text-slate-400 font-normal">/ ${item.targetWeight || item.totalWeight}</span>` : `<span class="text-slate-300 font-bold">-</span>`;
                         
                         let waLink = this.generateWaLink(person, item.title, item.type === 'test' ? 'اختبار' : 'استبانة', item.id, !!r, hasViewed);
-                        let waActionBtn = waLink !== '#' 
-                            ? `<a href="${waLink}" target="_blank" class="w-7 h-7 flex items-center justify-center bg-emerald-50 border border-emerald-200 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-lg text-[10px] transition shadow-2xs mx-auto"><i class="fa-brands fa-whatsapp"></i></a>`
-                            : `<span class="text-[8px] text-slate-300">لا رقم</span>`;
+                        
+                        let waActionBtn = '';
+                        if (waLink !== '#') {
+                            if (!r) { 
+                                waActionBtn = `<a href="${waLink}" target="_blank" class="px-2.5 py-1 flex items-center justify-center gap-1.5 bg-amber-50 border border-amber-200 text-amber-600 hover:bg-amber-500 hover:text-white rounded-lg text-[9px] font-black transition shadow-2xs mx-auto whitespace-nowrap"><i class="fa-brands fa-whatsapp text-sm"></i> تذكير بالحل</a>`;
+                            } else { 
+                                waActionBtn = `<a href="${waLink}" target="_blank" class="w-7 h-7 flex items-center justify-center bg-emerald-50 border border-emerald-200 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-lg text-[10px] transition shadow-2xs mx-auto" title="إرسال شكر"><i class="fa-brands fa-whatsapp"></i></a>`;
+                            }
+                        } else {
+                            waActionBtn = `<span class="text-[8px] text-slate-300">لا رقم</span>`;
+                        }
 
                         studentsRowsHTML += `
                             <tr class="border-b border-slate-100 last:border-0 transition ${rowBg}">
                                 <td class="py-2.5 px-3">
                                     <div class="flex flex-col gap-1">
-                                        <span class="text-[11px] font-bold text-slate-800 leading-none">${person.name}</span>
+                                        <span class="text-[11px] font-bold text-slate-800 leading-none ${person.name.includes('جاري') ? 'animate-pulse text-brand-500' : ''}">${person.name}</span>
                                         <div class="flex">${statusBadge}</div>
                                     </div>
                                 </td>
@@ -1774,22 +2199,31 @@
                                 ${standardAveragesHTML}
                             </div>
 
-                            <div class="mt-auto pt-4 border-t border-slate-100">
-                                <button type="button" onclick="app.toggleStudentsReport('report-${item.id}')" class="w-full py-2.5 rounded-xl bg-slate-50 border border-slate-200 hover:bg-slate-100 hover:border-brand-300 text-slate-700 text-xs font-bold transition flex items-center justify-center gap-2">
-                                    <i class="fa-solid fa-users"></i> استعراض تقرير تفاصيل الطلاب
+                            <div class="mt-auto pt-4 border-t border-slate-100 grid grid-cols-2 gap-2">
+                                <button type="button" onclick="app.toggleStudentsReport('report-${item.id}')" class="w-full py-2.5 rounded-xl bg-slate-50 border border-slate-200 hover:bg-slate-100 hover:border-brand-300 text-slate-700 text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm">
+                                    <i class="fa-solid fa-list"></i> جدول الإنجاز
                                 </button>
-                                
-                                <div id="report-${item.id}" class="hidden mt-3 bg-white border border-slate-200 rounded-xl overflow-hidden shadow-inner border-t-2 border-t-brand-500">
-                                    <div class="max-h-60 overflow-y-auto overflow-x-auto custom-scrollbar">
-                                        <table class="w-full text-right whitespace-nowrap min-w-max">
-                                            <thead class="bg-slate-50 sticky top-0 z-10 shadow-sm">
-                                                ${theadHTML}
-                                            </thead>
-                                            <tbody>
-                                                ${studentsRowsHTML}
-                                            </tbody>
-                                        </table>
-                                    </div>
+                                <button type="button" onclick="app.openReportConfig('${item.id}')" class="w-full py-2.5 rounded-xl bg-brand-50 border border-brand-200 hover:bg-brand-100 hover:border-brand-300 text-brand-700 text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm">
+                                    <i class="fa-solid fa-chart-pie"></i> تقرير ومقارنة
+                                </button>
+                            </div>
+                            
+                            <div id="report-${item.id}" class="hidden mt-3 bg-white border border-slate-200 rounded-xl overflow-hidden shadow-inner border-t-2 border-t-brand-500 col-span-full">
+                                <div class="flex items-center justify-between bg-slate-50 p-3 border-b border-slate-200">
+                                    <span class="text-[11px] font-black text-slate-700"><i class="fa-solid fa-list-check ml-1 text-brand-500"></i> تفاصيل إنجاز الطلاب:</span>
+                                    <button type="button" onclick="app.openBulkReminder('${item.id}')" class="px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-600 hover:text-white text-[10px] font-black transition flex items-center gap-1.5 shadow-sm">
+                                        <i class="fa-brands fa-whatsapp text-sm"></i> تنبيه جماعي للمتأخرين
+                                    </button>
+                                </div>
+                                <div class="max-h-60 overflow-y-auto overflow-x-auto custom-scrollbar">
+                                    <table class="w-full text-right whitespace-nowrap min-w-max">
+                                        <thead class="bg-slate-50 sticky top-0 z-10 shadow-sm">
+                                            ${theadHTML}
+                                        </thead>
+                                        <tbody>
+                                            ${studentsRowsHTML}
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
 
